@@ -302,7 +302,7 @@ public abstract class BaseWxMaServiceImpl<H, P> implements WxMaService, RequestH
     if (isApiSignatureRequired(url)) {
       // 接口需要签名
       log.debug("已经配置接口需要签名，接口{}将走加密访问路径", url);
-      JsonObject jsonObject = GSON.fromJson(postData, JsonObject.class);
+      JsonObject jsonObject = GSON.fromJson(postData == null ? "{}" : postData, JsonObject.class);
       return postWithSignature(url, jsonObject);
     } else {
       return execute(SimplePostRequestExecutor.create(this), url, postData);
@@ -323,12 +323,12 @@ public abstract class BaseWxMaServiceImpl<H, P> implements WxMaService, RequestH
 
   @Override
   public String post(String url, ToJson obj) throws WxErrorException {
-    return this.post(url, obj.toJson());
+    return this.post(url, obj == null ? "{}" : obj.toJson());
   }
 
   @Override
   public String post(String url, JsonObject jsonObject) throws WxErrorException {
-    return this.post(url, jsonObject.toString());
+    return this.post(url, jsonObject == null ? "{}" : jsonObject.toString());
   }
 
   @Override
@@ -343,12 +343,14 @@ public abstract class BaseWxMaServiceImpl<H, P> implements WxMaService, RequestH
   public <R, T> R execute(RequestExecutor<R, T> executor, String uri, T data)
       throws WxErrorException {
     String dataForLog;
-    if (data instanceof String) {
+    if (data == null) {
+      dataForLog = null;
+    } else if (data instanceof String) {
       dataForLog = DataUtils.handleDataWithSecret((String) data);
     } else {
       dataForLog = data.toString();
     }
-    return excuteWithRetry(
+    return executeWithRetry(
         (uriWithAccessToken) -> executor.execute(uriWithAccessToken, data, WxType.MiniApp),
         uri,
         dataForLog);
@@ -362,7 +364,7 @@ public abstract class BaseWxMaServiceImpl<H, P> implements WxMaService, RequestH
       String data)
       throws WxErrorException {
     String dataForLog = "Headers: " + headers.toString() + " Body: " + data;
-    return excuteWithRetry(
+    return executeWithRetry(
         (uriWithAccessToken) -> executor.execute(uriWithAccessToken, headers, data, WxType.MiniApp),
         uri,
         dataForLog);
@@ -372,7 +374,7 @@ public abstract class BaseWxMaServiceImpl<H, P> implements WxMaService, RequestH
     R execute(String urlWithAccessToken) throws IOException, WxErrorException;
   }
 
-  private <R, T> R excuteWithRetry(ExecutorAction<R> executor, String uri, String dataForLog)
+  private <R, T> R executeWithRetry(ExecutorAction<R> executor, String uri, String dataForLog)
       throws WxErrorException {
     int retryTimes = 0;
     do {
@@ -843,7 +845,12 @@ public abstract class BaseWxMaServiceImpl<H, P> implements WxMaService, RequestH
         new GsonBuilder()
             .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
             .create();
-    JsonObject jsonObject = gson.toJsonTree(obj).getAsJsonObject();
+    JsonObject jsonObject;
+    if (obj == null) {
+      jsonObject = gson.fromJson("{}", JsonObject.class);
+    } else {
+      jsonObject = gson.toJsonTree(obj).getAsJsonObject();
+    }
     return this.postWithSignature(url, jsonObject);
   }
 
